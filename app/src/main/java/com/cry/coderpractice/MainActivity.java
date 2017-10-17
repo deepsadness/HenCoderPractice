@@ -27,6 +27,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void subNumber(View view) {
-        mZangView2.subNumbers();
+        mZangView2.subAndgetChangeNumberPart();
     }
 }

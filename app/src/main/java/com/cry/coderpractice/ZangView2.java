@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.view.View;
@@ -26,6 +27,7 @@ public class ZangView2 extends View {
     private int distanceChange;
     private int animateDistance;
     private boolean upOrDown;
+    private int countSize;
 
     public ZangView2(Context context) {
         super(context);
@@ -67,7 +69,7 @@ public class ZangView2 extends View {
         //不需要动画的部分
         canvas.save();
         paint.setAlpha(255);
-        canvas.drawText(getNoChangeNumberPart(), measuredWidth / 2 - 100, 200, paint);
+        canvas.drawText(getNoChangeNumberPart(), getStartLocationX(), 200, paint);
         canvas.restore();
 
         canvas.save();
@@ -75,57 +77,85 @@ public class ZangView2 extends View {
         float alpha = transLateY * 1f / totalDistance;
         paint.setAlpha((int) (255 * alpha));
         canvas.translate(getChangeNumberPartTranlateX(), totalDistance - transLateY);
-        canvas.drawText(getChangeNumberNewPart() + "", measuredWidth / 2 - 100, 200, paint);
+        canvas.drawText(getChangeNumberDownPart() + "", getStartLocationX(), 200, paint);
         canvas.restore();
 
         canvas.save();
         paint.setAlpha((int) (255 * (1 - alpha)));
         canvas.translate(getChangeNumberPartTranlateX(), 0 - transLateY);
-        canvas.drawText(getChangeNumberOldPart() + "", measuredWidth / 2 - 100, 200, paint);
+        canvas.drawText(getChangeNumberUpPart() + "", getStartLocationX(), 200, paint);
         canvas.restore();
 
     }
 
     private float getChangeNumberPartTranlateX() {
-        //unchangeNumber
+//        //++时，如果时进位，需要进行变化。
+        if (animateDistance==countSize&& countSize>1) {
+            if (upOrDown) { //进位
+                System.out.println("进位 count="+count);
+            }else {  //--时，如果是退位，则需要进行变化
+                System.out.println("退位 count="+count);
+            }
+        }
         return paint.measureText(getNoChangeNumberPart());
     }
 
-    private String getChangeNumberOldPart() {
+    private int getStartLocationX() {
+        return (int) (measuredWidth / 2 - 100 - paint.measureText(String.valueOf(count)));
+    }
 
+    //从上方消失，或者从上方进入的数字。对于+，则表示上一个数字。对于-，则表示当前的数字
+    private String getChangeNumberUpPart() {
         if (upOrDown) {//++
             int temp = count - 1;
             double v = temp % (Math.pow(10, animateDistance));
 //            v++;
             return ((int) v) + "";
         } else { //--
-            int temp = count + 1;
+            int temp = count;
             double v = temp % (Math.pow(10, animateDistance));
 //            v--;
             return ((int) v) + "";
         }
     }
 
-    private String getChangeNumberNewPart() {
-        int temp = count - 1;
+    /**
+     * 从下方进入，或者从下方消失的数字。对于+，则表示当前的数字。对于-，则表示上一个的数字
+     *
+     * @return
+     */
+    private String getChangeNumberDownPart() {
+        String countString;
         if (upOrDown) {//++
-            double v = temp % (Math.pow(10, animateDistance));
-            v++;
-            String s = ((int) v) + "";
-            if (s.length() > 1) {
-                s = s.substring(1);
-            }
-            return s;
-        } else { //--
-            double v = temp % (Math.pow(10, animateDistance));
-            v--;
-            return ((int) v) + "";
+            countString = String.valueOf(count);
+        } else {
+            countString = String.valueOf(count + 1);
+        }
+        //如果需要动画的位置相当的话，
+        int length = countString.length();
+        if (length <= animateDistance) {
+            return countString;
+        } else {
+            int i = length - animateDistance;
+            return countString.substring(i, length);
         }
     }
 
+    //获取不变化的部分
+    //进位时，有变化。不进位时不变化
+    @NonNull
     private String getNoChangeNumberPart() {
-        double v = count / Math.pow(10, animateDistance);
-        return ((int) v) + "";
+        String countString = String.valueOf(count);
+        //如果需要动画的位置相当的话，
+        int length = countString.length();
+        if (length == animateDistance) {
+            return "";
+        } else if (length > animateDistance) {
+            int i = length - animateDistance;
+            return countString.substring(0, i);
+        } else {
+            return countString;
+        }
     }
 
     int transLateY;
@@ -152,6 +182,7 @@ public class ZangView2 extends View {
     }
 
     public void subNumbers() {
+        upOrDown = false;
         count--;
         this.newNumbers = count;
         oldNumbers = (count + 1);
@@ -177,13 +208,13 @@ public class ZangView2 extends View {
         //找到old和new之间的区别
 //        因为每次都是+1,故依次判断最后一位是否是9
         //先得到该数是几位数
-        int countSize = getNumberSizeCount(0, oldNumber);
+        countSize = getNumberSizeCount(0, oldNumber);
         //判断从低位开始需要改变的范围
         int count9size = getNumberLast9count(oldNumber, countSize);
         if (count9size >= countSize) {
             //全部改变，则不管
             distanceChange = 0;
-            animateDistance = countSize;
+            animateDistance = count9size;
         } else {
             //部分改变
             distanceChange = countSize - count9size;
@@ -191,6 +222,25 @@ public class ZangView2 extends View {
         }
         count--;
         addNumbers();
+    }
+
+    public void subAndgetChangeNumberPart() {
+        if (count<=0) {
+            return;
+        }
+        //需要改变的数字
+        int oldNumber = count;
+        count--;
+        int newNumber = count;
+        //找到old和new之间的区别
+//        因为每次都是+1,故依次判断最后一位是否是9
+        //先得到该数是几位数
+        int countSize = getNumberSizeCount(0, oldNumber);
+        //判断从低位开始需要改变的范围
+        animateDistance = getNumberLast0count(oldNumber, 0);
+        distanceChange = countSize - animateDistance;
+        count++;
+        subNumbers();
     }
 
     //往上+,可能需要改变的位数
@@ -210,6 +260,13 @@ public class ZangView2 extends View {
             }
         }
         count++;
+        //补充。如果首位是9，还需要进位，估+1
+        String oldNumberString = String.valueOf(oldNumber);
+        if (count == oldNumberString.length()) {
+            if (oldNumberString.indexOf("9") == 0) {
+                count++;
+            }
+        }
         return count;
     }
 
