@@ -4,7 +4,6 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
@@ -17,17 +16,26 @@ import android.view.View;
  */
 
 public class ZangView2 extends View {
-    public Drawable mDrawable;
+
     private Paint paint;
     private int count = 0;
     private int newNumbers;
-    private int oldNumbers;
-    private int changeNumberPart;
+    private String oldNumbers;
     public float mTextSize;
     private int distanceChange;
     private int animateDistance;
     private boolean upOrDown;
     private int countSize;
+    private boolean isNewNoChangePart = true;
+    private String noChangeNumberPartResult;
+    private boolean isNewDownPart = true;
+    private String changeNumberDownPartResult;
+    private boolean isNewUpPart = true;
+    private String changeNumberUpPart;
+    private boolean isChangeNumberPartUp = true;
+    private boolean isChangeNumberPartDown = true;
+    private float getChangeNumberPartTranlateXUp;
+    private float getChangeNumberPartTranlateXDown;
 
     public ZangView2(Context context) {
         super(context);
@@ -46,11 +54,11 @@ public class ZangView2 extends View {
 
 
     private void initViews(Context context) {
-        mDrawable = context.getResources().getDrawable(R.mipmap.ic_launcher);
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setStyle(Paint.Style.STROKE);
         mTextSize = 100f;
         paint.setTextSize(mTextSize);
+        changeFlagsSetFalse();
     }
 
     @Override
@@ -90,33 +98,51 @@ public class ZangView2 extends View {
 
     private float getChangeNumberPartTranlateX(boolean isUpOrDown) {
 //        //++时，如果时进位，需要进行变化。
+//        if (!isChangeNumberPartUp) {
+//            return getChangeNumberPartTranlateXUp;
+//        }
+        if (!isChangeNumberPartDown && !isUpOrDown && !upOrDown) {
+            return getChangeNumberPartTranlateXDown;
+        }
+        float result = -Float.MAX_VALUE;
         int length;
         if (upOrDown) {
-            String s = String.valueOf(count - 1);
+            String s = oldNumbers;
             length = s.length();
             if (length < animateDistance && isUpOrDown) {   //进位
                 System.out.println("TAG 进位 count=" + count);
                 if (length > 1) {
                     s = s.substring(0, 1);
+                    result = paint.measureText(s);
                 } else if (length == 0) {
-                    return paint.measureText(getNoChangeNumberPart());
+                    result = paint.measureText(getNoChangeNumberPart());
+                } else {
+                    result = paint.measureText(s);
                 }
-                return paint.measureText(s);
             }
         } else {
-            length = String.valueOf(count + 1).length();
+            length = oldNumbers.length();
             int newlength = String.valueOf(count).length();
             if (newlength < length) {
                 System.out.println("TAG 退位 count=" + count);
                 if (isUpOrDown) {
-                    return -paint.measureText("");
+                    result = -paint.measureText("");
                 } else {
-                    return -paint.measureText("9");
+                    result = -paint.measureText("9");
                 }
             }
         }
-        System.out.println("length count=" + length + " animateDistance=" + animateDistance);
-        return paint.measureText(getNoChangeNumberPart());
+        if (result == -Float.MAX_VALUE) {
+            result = paint.measureText(getNoChangeNumberPart());
+        }
+        if (isUpOrDown) {
+            this.getChangeNumberPartTranlateXUp = result;
+            isChangeNumberPartUp = false;
+        } else {
+            this.getChangeNumberPartTranlateXDown = result;
+            isChangeNumberPartDown = false;
+        }
+        return result;
     }
 
     private int getStartLocationX() {
@@ -125,16 +151,24 @@ public class ZangView2 extends View {
 
     //从上方消失，或者从上方进入的数字。对于+，则表示上一个数字。对于-，则表示当前的数字
     private String getChangeNumberUpPart() {
-        if (upOrDown) {//++
-            int temp = count - 1;
-            double v = temp % (Math.pow(10, animateDistance));
+        if (isNewUpPart) {
+            String result;
+            if (upOrDown) {//++
+                int temp = count - 1;
+                double v = temp % (Math.pow(10, animateDistance));
 //            v++;
-            return ((int) v) + "";
-        } else { //--
-            int temp = count;
-            double v = temp % (Math.pow(10, animateDistance));
+                result = ((int) v) + "";
+            } else { //--
+                int temp = count;
+                double v = temp % (Math.pow(10, animateDistance));
 //            v--;
-            return ((int) v) + "";
+                result = ((int) v) + "";
+            }
+            isNewUpPart = false;
+            this.changeNumberUpPart = result;
+            return result;
+        } else {
+            return changeNumberUpPart;
         }
     }
 
@@ -144,19 +178,27 @@ public class ZangView2 extends View {
      * @return
      */
     private String getChangeNumberDownPart() {
-        String countString;
-        if (upOrDown) {//++
-            countString = String.valueOf(count);
+        String result;
+        if (isNewDownPart) {
+            String countString;
+            if (upOrDown) {//++
+                countString = String.valueOf(count);
+            } else {
+                countString = oldNumbers;
+            }
+            //如果需要动画的位置相当的话，
+            int length = countString.length();
+            if (length <= animateDistance) {
+                result = countString;
+            } else {
+                int i = length - animateDistance;
+                result = countString.substring(i, length);
+            }
+            isNewDownPart = false;
+            this.changeNumberDownPartResult = result;
+            return result;
         } else {
-            countString = String.valueOf(count + 1);
-        }
-        //如果需要动画的位置相当的话，
-        int length = countString.length();
-        if (length <= animateDistance) {
-            return countString;
-        } else {
-            int i = length - animateDistance;
-            return countString.substring(i, length);
+            return changeNumberDownPartResult;
         }
     }
 
@@ -164,20 +206,28 @@ public class ZangView2 extends View {
     //进位时，有变化。不进位时不变化
     @NonNull
     private String getNoChangeNumberPart() {
-        String countString = String.valueOf(count);
-        //如果需要动画的位置相当的话，
-        int length = countString.length();
-        if (length == animateDistance) {
-            return "";
-        } else if (length > animateDistance) {
-            int i = length - animateDistance;
-            return countString.substring(0, i);
-        } else {
-            if (upOrDown) {
-                return countString;
+        String result = "";
+        if (isNewNoChangePart) {
+            String countString = String.valueOf(count);
+            //如果需要动画的位置相当的话，
+            int length = countString.length();
+            if (length == animateDistance) {
+                result = "";
+            } else if (length > animateDistance) {
+                int i = length - animateDistance;
+                result = countString.substring(0, i);
             } else {
-                return "";
+                if (upOrDown) {
+                    result = countString;
+                } else {
+                    result = "";
+                }
             }
+            this.noChangeNumberPartResult = result;
+            isNewNoChangePart = false;
+            return result;
+        } else {
+            return noChangeNumberPartResult;
         }
     }
 
@@ -204,7 +254,7 @@ public class ZangView2 extends View {
         upOrDown = true;
         count++;
         this.newNumbers = count;
-        oldNumbers = (count - 1);
+        oldNumbers = String.valueOf(count - 1);
         totalDistance = (int) paint.getFontSpacing();
         ValueAnimator valueAnimator = ValueAnimator.ofInt(0, totalDistance);
         valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -223,7 +273,7 @@ public class ZangView2 extends View {
         upOrDown = false;
         count--;
         this.newNumbers = count;
-        oldNumbers = (count + 1);
+        oldNumbers = String.valueOf(count + 1);
         totalDistance = (int) paint.getFontSpacing();
         ValueAnimator valueAnimator = ValueAnimator.ofInt(totalDistance, 0);
         valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -239,6 +289,7 @@ public class ZangView2 extends View {
     }
 
     public void AddAndgetChangeNumberPart() {
+        changeFlagsSetFalse();
         //需要改变的数字
         int oldNumber = count;
         count++;
@@ -266,6 +317,8 @@ public class ZangView2 extends View {
         if (count <= 0) {
             return;
         }
+        changeFlagsSetFalse();
+
         //需要改变的数字
         int oldNumber = count;
         count--;
@@ -279,6 +332,16 @@ public class ZangView2 extends View {
         distanceChange = countSize - animateDistance;
         count++;
         subNumbers();
+    }
+
+    private void changeFlagsSetFalse() {
+        isNewNoChangePart = true;
+        isNewDownPart = true;
+        isNewUpPart = true;
+        isChangeNumberPartUp = true;
+        isChangeNumberPartDown = true;
+        getChangeNumberPartTranlateXUp = -Float.MAX_VALUE;
+        getChangeNumberPartTranlateXDown = -Float.MAX_VALUE;
     }
 
     //往上+,可能需要改变的位数
