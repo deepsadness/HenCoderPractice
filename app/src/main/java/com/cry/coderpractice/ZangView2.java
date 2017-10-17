@@ -20,7 +20,7 @@ public class ZangView2 extends View {
     private Paint paint;
     private int count = 0;
     private int newNumbers;
-    private String oldNumbers;
+    private String oldNumbers = "0";
     public float mTextSize;
     private int distanceChange;
     private int animateDistance;
@@ -36,6 +36,7 @@ public class ZangView2 extends View {
     private boolean isChangeNumberPartDown = true;
     private float getChangeNumberPartTranlateXUp;
     private float getChangeNumberPartTranlateXDown;
+    private String maxWidth;
 
     public ZangView2(Context context) {
         super(context);
@@ -58,12 +59,16 @@ public class ZangView2 extends View {
         paint.setStyle(Paint.Style.STROKE);
         mTextSize = 100f;
         paint.setTextSize(mTextSize);
+        maxWidth = "100000";
         changeFlagsSetFalse();
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        int i = MeasureSpec.makeMeasureSpec((int) (paint.getFontSpacing() * 2.5f), MeasureSpec.EXACTLY);
+        int x = MeasureSpec.makeMeasureSpec((int) (paint.measureText(maxWidth)), MeasureSpec.EXACTLY);
+        setMeasuredDimension(x, i);
         measuredHeight = getMeasuredHeight();
         measuredWidth = getMeasuredWidth();
     }
@@ -77,7 +82,7 @@ public class ZangView2 extends View {
         //不需要动画的部分
         canvas.save();
         paint.setAlpha(255);
-        canvas.drawText(getNoChangeNumberPart(), getStartLocationX(), 200, paint);
+        canvas.drawText(getNoChangeNumberPart(), getStartLocationX(), getLocationY(), paint);
         canvas.restore();
 
         canvas.save();
@@ -85,15 +90,19 @@ public class ZangView2 extends View {
         float alpha = transLateY * 1f / totalDistance;
         paint.setAlpha((int) (255 * alpha));
         canvas.translate(getChangeNumberPartTranlateX(false), totalDistance - transLateY);
-        canvas.drawText(getChangeNumberDownPart() + "", getStartLocationX(), 200, paint);
+        canvas.drawText(getChangeNumberDownPart() + "", getStartLocationX(), getLocationY(), paint);
         canvas.restore();
 
         canvas.save();
         paint.setAlpha((int) (255 * (1 - alpha)));
         canvas.translate(getChangeNumberPartTranlateX(true), 0 - transLateY);
-        canvas.drawText(getChangeNumberUpPart() + "", getStartLocationX(), 200, paint);
+        canvas.drawText(getChangeNumberUpPart() + "", getStartLocationX(), getLocationY(), paint);
         canvas.restore();
 
+    }
+
+    private float getLocationY() {
+        return (float) (paint.getFontSpacing() * 1.5f);
     }
 
     private float getChangeNumberPartTranlateX(boolean isUpOrDown) {
@@ -146,7 +155,9 @@ public class ZangView2 extends View {
     }
 
     private int getStartLocationX() {
-        return (int) (measuredWidth / 2 - 100 - paint.measureText(String.valueOf(count)));
+        int i = (int) (measuredWidth - paint.measureText(String.valueOf(count)));
+        return i;
+//        return (int) - paint.measureText(maxWidth);
     }
 
     //从上方消失，或者从上方进入的数字。对于+，则表示上一个数字。对于-，则表示当前的数字
@@ -248,7 +259,7 @@ public class ZangView2 extends View {
 
     int transLateY;
 
-    int totalDistance = 100;
+    int totalDistance;
 
     public void addNumbers() {
         upOrDown = true;
