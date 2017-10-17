@@ -76,27 +76,46 @@ public class ZangView2 extends View {
         //需要动画的部分
         float alpha = transLateY * 1f / totalDistance;
         paint.setAlpha((int) (255 * alpha));
-        canvas.translate(getChangeNumberPartTranlateX(), totalDistance - transLateY);
+        canvas.translate(getChangeNumberPartTranlateX(false), totalDistance - transLateY);
         canvas.drawText(getChangeNumberDownPart() + "", getStartLocationX(), 200, paint);
         canvas.restore();
 
         canvas.save();
         paint.setAlpha((int) (255 * (1 - alpha)));
-        canvas.translate(getChangeNumberPartTranlateX(), 0 - transLateY);
+        canvas.translate(getChangeNumberPartTranlateX(true), 0 - transLateY);
         canvas.drawText(getChangeNumberUpPart() + "", getStartLocationX(), 200, paint);
         canvas.restore();
 
     }
 
-    private float getChangeNumberPartTranlateX() {
+    private float getChangeNumberPartTranlateX(boolean isUpOrDown) {
 //        //++时，如果时进位，需要进行变化。
-        if (animateDistance==countSize&& countSize>1) {
-            if (upOrDown) { //进位
-                System.out.println("进位 count="+count);
-            }else {  //--时，如果是退位，则需要进行变化
-                System.out.println("退位 count="+count);
+        int length;
+        if (upOrDown) {
+            String s = String.valueOf(count - 1);
+            length = s.length();
+            if (length < animateDistance && isUpOrDown) {   //进位
+                System.out.println("TAG 进位 count=" + count);
+                if (length > 1) {
+                    s = s.substring(0, 1);
+                } else if (length == 0) {
+                    return paint.measureText(getNoChangeNumberPart());
+                }
+                return paint.measureText(s);
+            }
+        } else {
+            length = String.valueOf(count + 1).length();
+            int newlength = String.valueOf(count).length();
+            if (newlength < length) {
+                System.out.println("TAG 退位 count=" + count);
+                if (isUpOrDown) {
+                    return -paint.measureText("");
+                } else {
+                    return -paint.measureText("9");
+                }
             }
         }
+        System.out.println("length count=" + length + " animateDistance=" + animateDistance);
         return paint.measureText(getNoChangeNumberPart());
     }
 
@@ -152,6 +171,25 @@ public class ZangView2 extends View {
             return "";
         } else if (length > animateDistance) {
             int i = length - animateDistance;
+            return countString.substring(0, i);
+        } else {
+            if (upOrDown) {
+                return countString;
+            } else {
+                return "";
+            }
+        }
+    }
+
+    @NonNull
+    private String getNoChangeNumberPart(int innerAnimate) {
+        String countString = String.valueOf(count);
+        //如果需要动画的位置相当的话，
+        int length = countString.length();
+        if (length == innerAnimate) {
+            return "";
+        } else if (length > innerAnimate) {
+            int i = length - innerAnimate;
             return countString.substring(0, i);
         } else {
             return countString;
@@ -225,7 +263,7 @@ public class ZangView2 extends View {
     }
 
     public void subAndgetChangeNumberPart() {
-        if (count<=0) {
+        if (count <= 0) {
             return;
         }
         //需要改变的数字
